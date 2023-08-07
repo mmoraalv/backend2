@@ -1,112 +1,78 @@
-const fs =require("fs")
+const fs = require('fs').promises;
 
-class ProductManager{
-    constructor(path){
-        this.path=path,
-     this.products=[  
-     ]
+class ProductManager {
+  constructor(filePath) {
+    this.path = filePath;
+  }
+
+  generateId = async () => {
+    const products = await this.getProducts();
+    const counter = products.length;
+    if (counter === 0) {
+      return 1;
+    } else {
+      return products[counter - 1].id + 1;
     }
-    //READ PRODUCTS
-    getProducts=async()=>{
-    const productlist= await fs.promises.readFile(this.path,"utf-8")
-    const productlistparse=JSON.parse(productlist)
-    return productlistparse
+  };
+
+  getProducts = async () => {
+    const data = await fs.readFile(this.path, 'utf8');
+
+    if (data) {
+      return JSON.parse(data);
+    } else {
+      console.error("Error al leer el archivo de productos.");
+      return [];
     }
-    //GENERATE ID 
-    generateId=async()=>{
-        const counter=this.products.length
-        if(counter==0){
-            return 1
-        }
-        else{
-            return (this.products[counter-1].id)+1
-        }
+  };
+
+  getProductById = async (id) => {
+    const products = await this.getProducts();
+    return products.find(product => product.id === id) || null;
+  };
+
+  updateProduct = async (id, updatedFields) => {
+    const products = await this.getProducts();
+    const productIndex = products.findIndex(product => product.id === id);
+    if (productIndex !== -1) {
+      products[productIndex] = { ...products[productIndex], ...updatedFields };
+      await fs.writeFile(this.path, JSON.stringify(products, null, 2));
     }
-    //CREATE PRODUCTS
-    addProduct=async(title,description,price,thumbnail,code,stock)=>{
-      if(!title || !description || !price || !thumbnail|| !code||!stock){
-        console.error("INGRESE TODOS LOS DATOS DEL PRODUCTO")
-        return 
+  };
+
+  deleteProduct = async (id) => {
+    const products = await this.getProducts();
+    const updatedProducts = products.filter(product => product.id !== id);
+    await fs.writeFile(this.path, JSON.stringify(updatedProducts, null, 2));
+  };
+
+  addProduct = async (title, description, price, thumbnail, code, stock) => {
+    const products = await this.getProducts();
+    if (!title || !description || !price || !thumbnail || !code || !stock) {
+      console.error("INGRESE TODOS LOS DATOS DEL PRODUCTO");
+      return;
+    } else {
+      const codigorepetido = products.find(
+        (elemento) => elemento.code === code
+      );
+      if (codigorepetido) {
+        console.error("EL CODIGO DEL PRODUCTO QUE DESEA AGREGAR ES REPETIDO");
+        return;
+      } else {
+        const id = await this.generateId();
+        const productnew = {
+          id,
+          title,
+          description,
+          price,
+          thumbnail,
+          code,
+          stock,
+        };
+        products.push(productnew);
+        await fs.writeFile(this.path, JSON.stringify(products, null, 2));
       }
-      else{
-        const codigorepetido=this.products.find(elemento=>elemento.code===code)
-        if(codigorepetido){
-             console.error("EL CODIGO DEL PRODUCTO QUE DESEA AGREGAR ES REPETIDO")
-             return
-        }
-        else{
-            const id=await this.generateId()
-            const productnew={
-                id,title,description,price,thumbnail,code,stock
-            }
-            this.products.push(productnew)
-            await fs.promises.writeFile(this.path,JSON.stringify(this.products,null,2))
-        }
-      }
     }
-
-
-     //UPDATE PRODUCTS
-     updateProduct=async(id,title,description,price,thumbnail,code,stock)=>{
-        if(!id|| !title || !description || !price || !thumbnail|| !code||!stock){
-          console.error("INGRESE TODOS LOS DATOS DEL PRODUCTO PARA SU ACTUALIZACION")
-          return 
-        }
-        else{
-            const allproducts=await this.getProducts()
-            const codigorepetido=allproducts.find(elemento=>elemento.code===code)
-            if(codigorepetido){
-                 console.error("EL CODIGO DEL PRODUCTO QUE DESEA ACTUALIZAR ES REPETIDO")
-                 return
-            }
-            else{
-                const currentProductsList=await this.getProducts()
-                const newProductsList=currentProductsList.map(elemento=>{
-                    if(elemento.id===id){
-                      const updatedProduct={
-                        ...elemento,
-                        title,description,price,thumbnail,code,stock
-                      }
-                      return updatedProduct
-                    }
-                    else{
-                        return elemento
-                    }
-                })
-                await fs.promises.writeFile(this.path,JSON.stringify(newProductsList,null,2))
-            }
-            
-        }
-      }
-
-
-      //DELETE PRODUCTS
-      deleteProduct=async(id)=>{
-        const allproducts=await this.getProducts()
-        const productswithoutfound=allproducts.filter(elemento=>elemento.id!==id)
-       await fs.promises.writeFile(this.path,JSON.stringify(productswithoutfound,null,2))
-      }
-    getProductbyId=async(id)=>{
-        const allproducts=await this.getProducts()
-       const found=allproducts.find(element=>element.id===id)
-       return found
-    }
-
-
+  };
 }
 
-async function generator(){
-    
-const productmanager=new ProductManager("./products.json");
-//await productmanager.addProduct("product1","description1",1500,"url","abc123",500)
-//await productmanager.addProduct("product2","description2",3500,"url","abc122",500)
-// await productmanager.addProduct("product3","description2",1500,"url","abc125",500)
-// await productmanager.updateProduct(3,"zzzzz","xxxxxx",1500,"url","abc126",500)
-//await productmanager.deleteProduct(2)
-const solo=await productmanager.getProductbyId(1)
-
-//const listado=await productmanager.getProducts()
- console.log(solo)
-}
-
-generator()
